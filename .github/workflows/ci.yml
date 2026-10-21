@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: structflow
+          POSTGRES_PASSWORD: structflow
+          POSTGRES_DB: structflow
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U structflow"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      DATABASE_URL: postgresql+psycopg://structflow:structflow@localhost:5432/structflow
+      HYPOTHESIS_PROFILE: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Type check
+        run: mypy structflow/src api/structflow_api
+      - name: Library tests
+        run: pytest structflow
+      - name: API tests (SQLite, plus migrations against Postgres)
+        run: pytest api
+        env:
+          TEST_POSTGRES_URL: ${{ env.DATABASE_URL }}
+      - name: Postgres end to end (migrate, ingest 1,000 loans, nightly reprice)
+        working-directory: api
+        run: |
+          alembic upgrade head
+          structflow ingest ../data/synthetic_pool_1000.csv --name FNMA-SYN-1000 --pass-through-rate 0.055
+          structflow load-curve ../data/ust_curve.csv
+          structflow reprice --as-of 2026-10-21
+      - name: Benchmark (smoke)
+        run: python bench/benchmark_projection.py --loans 500 --repeat 1
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build

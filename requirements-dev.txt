@@ -1,0 +1,5 @@
+-e ./structflow[test]
+-e ./api[test]
+ruff==0.17.1
+mypy==2.4.0
+pandas-stubs
