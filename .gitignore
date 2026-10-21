@@ -1,0 +1,13 @@
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+*.db
+.venv/
+node_modules/
+web/dist/
+web/coverage/
+build/
+*.tsbuildinfo

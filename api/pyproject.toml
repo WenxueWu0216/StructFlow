@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "structflow-api"
+version = "0.1.0"
+description = "Flask REST service for StructFlow pool cash flows and pricing"
+requires-python = ">=3.11"
+dependencies = [
+    "structflow>=0.1,<0.2",
+    "flask>=3.0",
+    "pydantic>=2.11",
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.1",
+]
+
+[project.optional-dependencies]
+server = ["gunicorn>=22"]
+test = ["pytest>=8"]
+
+[project.scripts]
+structflow = "structflow_api.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["structflow_api*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
